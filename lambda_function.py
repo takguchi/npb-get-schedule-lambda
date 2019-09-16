@@ -3,16 +3,18 @@ import re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from time import sleep
 import datetime
 import csv
+import boto3
 
 THIS_YEAR = datetime.date.today().year
 START_MONTH = 3
 END_MONTH = 10
 
-BUCKET_NAME = 'npb-match-results'
+BUCKET_NAME = 'npb-match-result'
 URL_TEMPLATE = 'http://npb.jp/games/{year}/schedule_{month}_detail.html'
-FILENAME_TEMPLATE = '{directory}/{year}/{year}_schedule.csv'
+FILENAME_TEMPLATE = '{directory}/{year}_schedule.csv'
 
 def lambda_handler(event, context):
     s3 = boto3.resource('s3')
@@ -69,10 +71,15 @@ def scrape(driver, s3):
                     if csv_row and len(csv_row) == 5:
                         writer.writerow(csv_row)
 
+                # S3へアップロード
+                bucket = s3.Bucket(BUCKET_NAME)
+                bucket.upload_file(FILENAME_TEMPLATE.format(directory='/tmp',year=THIS_YEAR),
+                                FILENAME_TEMPLATE.format(directory=THIS_YEAR,year=THIS_YEAR))
+
                 print('success target={year}/{month}'
                     .format(year=THIS_YEAR, month=str(month).zfill(2)))
             except Exception as e:
-                print('error_message:{ message }'.format(message = e))
+                print('error_message:{message}'.format(message=e))
 
 def date_formatter(raw_date):
-    return THIS_YEAR + '/' + raw_date[:-3]
+    return str(THIS_YEAR) + '/' + raw_date[:-3]
