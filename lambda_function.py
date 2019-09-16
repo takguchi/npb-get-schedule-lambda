@@ -3,7 +3,6 @@ import re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from time import sleep
 import datetime
 import csv
 import boto3
@@ -31,7 +30,6 @@ def lambda_handler(event, context):
     driver = webdriver.Chrome('./bin/chromedriver', chrome_options=options)
 
     scrape(driver, s3)
-    sleep(1)
 
     driver.close()
 
@@ -63,7 +61,7 @@ def scrape(driver, s3):
                         time = td.find('div', class_='time')
 
                         if team1 and team2:
-                            csv_row.append(date_formatter(date.string))
+                            csv_row.append(str(THIS_YEAR) + '/' + date.string[:-3])
                             csv_row.extend([team1.string, team2.string])
                         if place and time:
                             csv_row.extend([place.string, time.string])
@@ -71,15 +69,13 @@ def scrape(driver, s3):
                     if csv_row and len(csv_row) == 5:
                         writer.writerow(csv_row)
 
-                # S3へアップロード
-                bucket = s3.Bucket(BUCKET_NAME)
-                bucket.upload_file(FILENAME_TEMPLATE.format(directory='/tmp',year=THIS_YEAR),
-                                FILENAME_TEMPLATE.format(directory=THIS_YEAR,year=THIS_YEAR))
-
                 print('success target={year}/{month}'
                     .format(year=THIS_YEAR, month=str(month).zfill(2)))
             except Exception as e:
                 print('error_message:{message}'.format(message=e))
 
-def date_formatter(raw_date):
-    return str(THIS_YEAR) + '/' + raw_date[:-3]
+    # S3へアップロード
+    bucket = s3.Bucket(BUCKET_NAME)
+    bucket.upload_file(FILENAME_TEMPLATE.format(directory='/tmp',year=THIS_YEAR),
+                    FILENAME_TEMPLATE.format(directory=THIS_YEAR,year=THIS_YEAR))
+
